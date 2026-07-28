@@ -5,7 +5,7 @@ import * as signalR from "@microsoft/signalr";
 import { createSignalRConnection } from "@/lib/signalr";
 import type { ChatMessage } from "@/types/chat";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
 
 interface UseChatSignalRProps {
   ticketId: string | null;
@@ -99,7 +99,7 @@ export function useChatSignalR({
       const connection = connectionRef.current;
       if (connection && connection.state === signalR.HubConnectionState.Connected) {
         try {
-          await connection.invoke("SendMessage", ticketId, userId, text);
+          await connection.invoke("SendMessage", ticketId, userId, text, "customer");
           return true;
         } catch (err) {
           console.error("Failed to send message via SignalR:", err);

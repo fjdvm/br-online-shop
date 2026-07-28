@@ -30,8 +30,8 @@ apps/api-oos/
 cd apps/api-oos
 dotnet run
 ```
-- API Base URL: `https://localhost:5001/api`
-- Swagger UI: `https://localhost:5001/swagger`
+- API Base URL: `https://localhost:7004/api`
+- Swagger UI: `https://localhost:7004/swagger`
 
 ## Database Migrations (Entity Framework Core)
 

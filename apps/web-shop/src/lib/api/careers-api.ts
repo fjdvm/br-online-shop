@@ -1,7 +1,7 @@
 import { apiClient } from "./api-client";
 import type { JobPosting, JobApplicationResponse } from "@/types/careers";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
 
 export const careersApi = {
   getJobs: () => apiClient.get<JobPosting[]>("/jobs"),

@@ -156,7 +156,9 @@ export function useChat(initialTicketId?: string) {
       setIsBotReplying(true);
 
       try {
-        const reply: BotReplyResponse = await supportApi.getBotReply(text, ticketId || undefined, token);
+        const reply: BotReplyResponse = isAuthenticated
+          ? await supportApi.getBotReply(text, ticketId || undefined, token)
+          : await supportApi.getPublicBotReply(text);
 
         const botMsg: ChatMessage = {
           id: `bot-${Date.now()}`,
@@ -177,7 +179,7 @@ export function useChat(initialTicketId?: string) {
         setIsBotReplying(false);
       }
     },
-    [botPhase, ticketId, userId, session?.user?.name, token, sendSignalRMessage]
+    [botPhase, ticketId, userId, session?.user?.name, token, isAuthenticated, sendSignalRMessage]
   );
 
   return {

@@ -8,13 +8,13 @@ import { profileSchema, type ProfileFormData, type AddressFormData } from "@/lib
 import type { AddressDto, UserDto } from "@/types/auth";
 import { userApi } from "@/lib/api/api-client";
 
-export type TabType = "personal" | "addresses" | "orders" | "tickets";
+export type TabType = "personal" | "addresses" | "orders";
 
 export function useProfilePage() {
   const { data: session } = useSession();
   const token = session?.accessToken || "";
 
-  const [activeTab, setActiveTab] = useState<TabType>("personal");
+  const [activeTab, setActiveTab] = useState<TabType>("orders");
   const [user, setUser] = useState<UserDto | null>(null);
   const [addresses, setAddresses] = useState<AddressDto[]>([]);
   const [isLoadingUser, setIsLoadingUser] = useState(true);

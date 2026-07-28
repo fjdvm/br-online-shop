@@ -22,24 +22,7 @@ public class SentraCxService : ISentraCxService
     {
         var client = _httpClientFactory.CreateClient("SentraCX");
 
-        try
-        {
-            var nameParts = userName.Split(' ', 2);
-            var firstName = nameParts.Length > 0 ? nameParts[0] : userName;
-            var lastName = nameParts.Length > 1 ? nameParts[1] : "";
-
-            var signupBody = new
-            {
-                email = userEmail,
-                firstName = firstName,
-                lastName = lastName
-            };
-            await client.PostAsJsonAsync("/api/v1/webhooks/customer-signup", signupBody);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to trigger SentraCX customer signup webhook (may already exist).");
-        }
+        await EnsureCustomerSignupInternalAsync(client, userId, userName, userEmail);
 
         var ticketBody = new
         {
@@ -59,6 +42,35 @@ public class SentraCxService : ISentraCxService
         throw new InvalidOperationException("Failed to extract ticket ID from SentraCX API response.");
     }
 
+    public async Task EnsureCustomerSignupAsync(Guid userId, string userName, string userEmail)
+    {
+        var client = _httpClientFactory.CreateClient("SentraCX");
+        await EnsureCustomerSignupInternalAsync(client, userId, userName, userEmail);
+    }
+
+    private async Task EnsureCustomerSignupInternalAsync(HttpClient client, Guid userId, string userName, string userEmail)
+    {
+        try
+        {
+            var nameParts = userName.Split(' ', 2);
+            var firstName = nameParts.Length > 0 ? nameParts[0] : userName;
+            var lastName = nameParts.Length > 1 ? nameParts[1] : "";
+
+            var signupBody = new
+            {
+                email = userEmail,
+                firstName = firstName,
+                lastName = lastName,
+                externalUserId = userId.ToString()
+            };
+            await client.PostAsJsonAsync("/api/v1/webhooks/customer-signup", signupBody);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to trigger SentraCX customer signup webhook (may already exist).");
+        }
+    }
+
     public async Task<string> ProxyGetAsync(string path)
     {
         var client = _httpClientFactory.CreateClient("SentraCX");
@@ -70,11 +82,12 @@ public class SentraCxService : ISentraCxService
         return await response.Content.ReadAsStringAsync();
     }
 
-    public async Task<string> ProxyPostAsync(string path, object body)
+    public async Task<(string Content, int StatusCode)> ProxyPostAsync(string path, object body)
     {
         var client = _httpClientFactory.CreateClient("SentraCX");
         var response = await client.PostAsJsonAsync(path, body);
-        return await response.Content.ReadAsStringAsync();
+        var content = await response.Content.ReadAsStringAsync();
+        return (content, (int)response.StatusCode);
     }
 
     public async Task<bool> ProxyDeleteAsync(string path)
