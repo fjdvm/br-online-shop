@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ShoppingBag, Search, User, Menu, X, ChevronRight } from "lucide-react";
+import { ShoppingBag, Headphones, User, Menu, X, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/useCart";
 import { CartSheet } from "@/components/features/cart/CartSheet";
@@ -84,9 +84,13 @@ export function Header() {
 
         {/* Actions & Mobile Hamburger Toggle */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" aria-label="Search" className="rounded-full hidden sm:flex">
-            <Search className="w-5 h-5" />
-          </Button>
+          {isAuthenticated && (
+            <Button asChild variant="ghost" size="icon" aria-label="Contact Support" className="rounded-full hidden sm:flex">
+              <Link href="/support">
+                <Headphones className="w-5 h-5" />
+              </Link>
+            </Button>
+          )}
 
           <Button asChild variant="ghost" size="icon" aria-label="Account" className="rounded-full hidden sm:flex">
             <Link href={accountHref}>
@@ -184,6 +188,20 @@ export function Header() {
                   </Link>
                 );
               })}
+
+              {isAuthenticated && (
+                <Link
+                  href="/support"
+                  className={`flex items-center justify-between px-4 py-3.5 rounded-xl text-base font-bold transition-all ${
+                    pathname === "/support"
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-foreground hover:bg-surface-low hover:text-primary"
+                  }`}
+                >
+                  <span>Contact Support</span>
+                  <ChevronRight className={`w-4 h-4 ${pathname === "/support" ? "text-white" : "text-muted-foreground"}`} />
+                </Link>
+              )}
 
               {isAuthenticated ? (
                 <Link

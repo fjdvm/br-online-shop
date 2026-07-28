@@ -230,7 +230,10 @@ Organized as Epics → User Stories → Tasks (Backend / Frontend split). Priori
 
 ## EPIC 5: Customer Support (P1)
 
-**5.1 Live chat widget**
+**5.1 Standalone support portal**
+- [x] Frontend: Dedicated standalone support portal page (`/support`) with ticket creation and dashboard — P1
+
+**5.2 Live chat widget**
 
 - [x] Decide approach: (a) build custom chat with SignalR (.NET) for real-time messaging, integrated with SentraCX CRM.
 - [x] Backend (if custom): SignalR hub for chat (in SentraCX api-crm) + support webhook ticket relay in api-oos
@@ -287,7 +290,7 @@ Organized as Epics → User Stories → Tasks (Backend / Frontend split). Priori
 
 ## EPIC 8: Global UI/UX & Cross-Cutting Concerns (P0–P1)
 
-- [x] Frontend: Sticky header (logo, nav, search icon, cart icon w/ badge, account icon) — P0
+- [x] Frontend: Sticky header (logo, nav, support icon, cart icon w/ badge, account icon) — P0
 - [x] Frontend: Footer (links, social icons, newsletter, copyright) — P0
 - [x] Frontend: Toast notification system (shadcn Toast/Sonner) for cart/order/form actions — P0
 - [x] Frontend: Global loading states (skeletons) and error boundaries — P0

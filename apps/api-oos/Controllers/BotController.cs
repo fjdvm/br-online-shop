@@ -1,5 +1,6 @@
 namespace ApiOos.Controllers;
 
+using System.Security.Claims;
 using ApiOos.DTOs.Requests;
 using ApiOos.DTOs.Responses;
 using ApiOos.Interfaces.Services;
@@ -21,7 +22,18 @@ public class BotController : ControllerBase
     [HttpPost("reply")]
     public async Task<ActionResult<BotReplyResponseDto>> GetReply([FromBody] BotReplyRequestDto dto)
     {
-        var reply = await _aiAnalyticsService.GetBotReplyAsync(dto);
+        var subClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("sub");
+        var customerId = subClaim?.Value;
+
+        var reply = await _aiAnalyticsService.GetBotReplyAsync(dto, customerId);
+        return Ok(reply);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("public-reply")]
+    public async Task<ActionResult<BotReplyResponseDto>> GetPublicReply([FromBody] BotReplyRequestDto dto)
+    {
+        var reply = await _aiAnalyticsService.GetPublicBotReplyAsync(dto.UserMessage);
         return Ok(reply);
     }
 }

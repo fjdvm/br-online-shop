@@ -18,51 +18,58 @@ public class AiAnalyticsService : IAiAnalyticsService
         _logger = logger;
     }
 
-    public async Task<BotReplyResponseDto> GetBotReplyAsync(BotReplyRequestDto dto)
+    public async Task<BotReplyResponseDto> GetBotReplyAsync(BotReplyRequestDto dto, string? customerId = null)
+    {
+        return await ExecuteChatbotReplyAsync(dto.UserMessage, dto.TicketId, customerId);
+    }
+
+    public async Task<BotReplyResponseDto> GetPublicBotReplyAsync(string userMessage)
+    {
+        return await ExecuteChatbotReplyAsync(userMessage, null, null);
+    }
+
+    private async Task<BotReplyResponseDto> ExecuteChatbotReplyAsync(string message, string? ticketId, string? customerId)
     {
         try
         {
             var client = _httpClientFactory.CreateClient("AiAnalytics");
             var body = new
             {
-                ticket_id = string.IsNullOrWhiteSpace(dto.TicketId) ? Guid.NewGuid().ToString() : dto.TicketId,
-                text = dto.UserMessage,
-                include_messages = false,
+                message = message,
+                customer_id = customerId,
+                ticket_id = string.IsNullOrWhiteSpace(ticketId) ? null : ticketId,
+                conversation_history = Array.Empty<object>()
             };
 
-            var response = await client.PostAsJsonAsync("/api/v1/tickets/analyze-intent", body);
+            var response = await client.PostAsJsonAsync("/api/v1/chatbot/reply", body);
             if (response.IsSuccessStatusCode)
             {
                 using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
                 var root = doc.RootElement;
 
-                var category = root.TryGetProperty("predicted_category", out var catProp) ? catProp.GetString() ?? "general_inquiry" : "general_inquiry";
-                var reasoning = root.TryGetProperty("reasoning", out var reasonProp) ? reasonProp.GetString() ?? "" : "";
-                var urgency = root.TryGetProperty("urgency_score", out var urgProp) ? urgProp.GetDouble() : 0.5;
-
-                var replyText = !string.IsNullOrWhiteSpace(reasoning)
-                    ? reasoning
-                    : $"I understand your query regarding {category.Replace('_', ' ')}. Let me know if you would like to speak with a human support agent!";
+                var reply = root.TryGetProperty("reply", out var replyProp) ? replyProp.GetString() ?? "" : "";
+                var intent = root.TryGetProperty("intent", out var intentProp) ? intentProp.GetString() ?? "general_inquiry" : "general_inquiry";
+                var shouldEscalate = root.TryGetProperty("should_escalate", out var escProp) && escProp.GetBoolean();
 
                 return new BotReplyResponseDto
                 {
-                    Reply = replyText,
-                    Category = category,
-                    ShouldEscalate = urgency >= 0.7,
+                    Reply = reply,
+                    Category = intent,
+                    ShouldEscalate = shouldEscalate,
                 };
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to call AI Analytics service for bot reply. Falling back to default assistant reply.");
+            _logger.LogWarning(ex, "Failed to call AI Analytics service for chatbot reply. Falling back to default assistant reply.");
         }
 
         // Fallback response
         return new BotReplyResponseDto
         {
-            Reply = "Thank you for reaching out! I've logged your query. Would you like me to connect you to a live support representative?",
+            Reply = "Thank you for reaching out! How can I assist you further?",
             Category = "general_inquiry",
-            ShouldEscalate = true,
+            ShouldEscalate = false,
         };
     }
 }

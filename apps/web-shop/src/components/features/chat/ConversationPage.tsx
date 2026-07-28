@@ -71,7 +71,7 @@ export function ConversationPage({ ticketId }: ConversationPageProps) {
       if (success) {
         setTicket((prev) => (prev ? { ...prev, status: "Canceled" } : null));
         setShowCancelModal(false);
-        router.push("/profile");
+        router.push("/support");
       }
     } finally {
       setIsCancelling(false);
@@ -94,10 +94,10 @@ export function ConversationPage({ ticketId }: ConversationPageProps) {
       {/* Top Breadcrumb & Actions */}
       <div className="flex items-center justify-between gap-4 mb-6">
         <Link
-          href="/profile"
+          href="/support"
           className="inline-flex items-center gap-2 text-xs font-bold text-[#451077] hover:text-[#340c5a] bg-purple-50 px-3.5 py-2 rounded-full border border-purple-100 shadow-2xs transition-all hover:bg-purple-100"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to Profile
+          <ArrowLeft className="w-3.5 h-3.5" /> Back to Support
         </Link>
 
         {!isClosed && (

@@ -116,7 +116,7 @@ Copy `.env.example` templates to `.env.local` / `.env` files in their respective
 
 - **Frontend (`apps/web-shop/.env.example` → `apps/web-shop/.env.local`)**:
   ```env
-  NEXT_PUBLIC_API_URL=http://localhost:5000/api
+  NEXT_PUBLIC_API_URL=http://localhost:5004/api
   ```
 
 - **Backend (`apps/api-oos/.env.example` → `apps/api-oos/.env`)**:
@@ -133,7 +133,7 @@ You can launch apps individually or concurrently:
   ```bash
   pnpm dev:web
   ```
-  *App runs at `http://localhost:3000` (or `http://localhost:3004`)*
+  *App runs at `http://localhost:3012` (or `https://localhost:3012`)*
 
 - **Frontend (OOS Dashboard)**:
   ```bash
@@ -145,7 +145,7 @@ You can launch apps individually or concurrently:
   cd apps/api-oos
   dotnet run
   ```
-  *Swagger UI accessible at `https://localhost:5001/swagger`*
+  *Swagger UI accessible at `https://localhost:7004/swagger`*
 
 - **All Workspace Tasks**:
   ```bash

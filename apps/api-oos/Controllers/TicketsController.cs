@@ -40,8 +40,13 @@ public class TicketsController : ControllerBase
     public async Task<IActionResult> CreateTicket([FromQuery] string? customerId, [FromBody] object body)
     {
         var query = !string.IsNullOrEmpty(customerId) ? $"?customerId={customerId}" : "";
-        var json = await _sentraCxService.ProxyPostAsync($"/api/v1/tickets{query}", body);
-        return Content(json, "application/json");
+        var (json, statusCode) = await _sentraCxService.ProxyPostAsync($"/api/v1/tickets{query}", body);
+        return new ContentResult
+        {
+            Content = json,
+            ContentType = "application/json",
+            StatusCode = statusCode
+        };
     }
 
     [HttpDelete("{ticketId}")]

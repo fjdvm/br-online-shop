@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Headphones, MessageSquare, Plus, Clock, User, ShieldCheck, Loader2 } from "lucide-react";
 import { supportApi } from "@/lib/api/support-api";
 import { TicketSubmitDialog } from "./TicketSubmitDialog";
@@ -13,25 +14,38 @@ interface ProfileTicketsTabProps {
 }
 
 export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabProps) {
+  const router = useRouter();
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("All");
 
-  const loadTickets = useCallback(async () => {
+  const loadTickets = useCallback(async (silent = false) => {
     if (!userId) {
       setIsLoading(false);
       return;
     }
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     const data = await supportApi.getCustomerTickets(userId);
     setTickets(data);
-    setIsLoading(false);
+    if (!silent) setIsLoading(false);
   }, [userId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadTickets();
   }, [loadTickets]);
+
+  // Poll for ticket updates every 10 seconds
+  useEffect(() => {
+    if (!userId) return;
+
+    const interval = setInterval(() => {
+      loadTickets(true);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [loadTickets, userId]);
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -48,6 +62,22 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
         return "bg-slate-100 text-slate-700 border-slate-200";
     }
   };
+
+  const getCount = (status: string) => {
+    if (status === "All") return tickets.length;
+    if (status === "Ongoing") {
+      return tickets.filter((t) => t.status === "Ongoing" || t.status === "Claimed").length;
+    }
+    return tickets.filter((t) => t.status === status).length;
+  };
+
+  const filteredTickets = tickets.filter((ticket) => {
+    if (statusFilter === "All") return true;
+    if (statusFilter === "Ongoing") {
+      return ticket.status === "Ongoing" || ticket.status === "Claimed";
+    }
+    return ticket.status === statusFilter;
+  });
 
   return (
     <div className="space-y-6">
@@ -81,6 +111,26 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
         </div>
       </div>
 
+      {/* Status Filters */}
+      {tickets.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 p-1 bg-surface-low border border-border rounded-xl w-fit">
+          {["All", "Unclaimed", "Ongoing", "Completed", "Canceled"].map((status) => (
+            <button
+              key={status}
+              type="button"
+              onClick={() => setStatusFilter(status)}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                statusFilter === status
+                  ? "bg-primary text-white shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-slate-100/50"
+              }`}
+            >
+              {status} <span className="opacity-70 ml-0.5 text-[10px]">({getCount(status)})</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Tickets List */}
       {isLoading ? (
         <div className="py-12 text-center text-xs text-muted-foreground font-medium">
@@ -111,9 +161,13 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
             )}
           </div>
         </div>
+      ) : filteredTickets.length === 0 ? (
+        <div className="p-12 text-center border border-dashed border-border rounded-2xl bg-surface-low text-xs text-muted-foreground font-medium">
+          No tickets found matching the &quot;{statusFilter}&quot; status filter.
+        </div>
       ) : (
         <div className="space-y-4">
-          {tickets.map((ticket) => (
+          {filteredTickets.map((ticket) => (
             <div
               key={ticket.id}
               className="bg-surface-card border border-border rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all flex flex-wrap items-center justify-between gap-4"
@@ -176,7 +230,13 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
         isOpen={isSubmitDialogOpen}
         onClose={() => setIsSubmitDialogOpen(false)}
         userId={userId}
-        onSuccess={loadTickets}
+        onSuccess={(newTicketId) => {
+          if (newTicketId) {
+            router.push(`/support/${newTicketId}`);
+          } else {
+            loadTickets();
+          }
+        }}
       />
     </div>
   );

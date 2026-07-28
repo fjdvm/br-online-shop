@@ -1,7 +1,7 @@
 import { apiClient } from "@/lib/api/api-client";
 import type { BotReplyResponse, TicketSummary } from "@/types/chat";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
 
 export const supportApi = {
   async getBotReply(userMessage: string, ticketId?: string, token?: string): Promise<BotReplyResponse> {
@@ -9,6 +9,13 @@ export const supportApi = {
       "/bot/reply",
       { ticketId: ticketId || "", userMessage },
       { token }
+    );
+  },
+
+  async getPublicBotReply(userMessage: string): Promise<BotReplyResponse> {
+    return await apiClient.post<BotReplyResponse>(
+      "/bot/public-reply",
+      { userMessage }
     );
   },
 

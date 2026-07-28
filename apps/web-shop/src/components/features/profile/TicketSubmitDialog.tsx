@@ -27,7 +27,7 @@ interface TicketSubmitDialogProps {
   isOpen: boolean;
   onClose: () => void;
   userId?: string;
-  onSuccess: () => void;
+  onSuccess: (ticketId?: string) => void;
 }
 
 export function TicketSubmitDialog({
@@ -74,7 +74,7 @@ export function TicketSubmitDialog({
         setType("Inquiry");
         setDescription("");
         setImages([]);
-        onSuccess();
+        onSuccess(res.id);
         onClose();
       } else {
         setErrorMessage(res.error || "Failed to submit ticket. Please try again.");
