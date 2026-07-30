@@ -6,7 +6,6 @@ import { createSignalRConnection } from "@/lib/signalr";
 import type { ChatMessage } from "@/types/chat";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
-
 interface TicketStatusChangedPayload {
   ticketId: string;
   status: string;

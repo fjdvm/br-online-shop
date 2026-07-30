@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Headphones, MessageSquare, Plus, Clock, User, ShieldCheck, Loader2 } from "lucide-react";
 import { supportApi } from "@/lib/api/support-api";
 import { TicketSubmitDialog } from "./TicketSubmitDialog";
@@ -13,6 +14,7 @@ interface ProfileTicketsTabProps {
 }
 
 export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabProps) {
+  const router = useRouter();
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
@@ -230,8 +232,12 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
         isOpen={isSubmitDialogOpen}
         onClose={() => setIsSubmitDialogOpen(false)}
         userId={userId}
-        onSuccess={() => {
-          loadTickets();
+        onSuccess={(newTicketId) => {
+          if (newTicketId) {
+            router.push(`/support/${newTicketId}`);
+          } else {
+            loadTickets();
+          }
         }}
       />
     </div>
