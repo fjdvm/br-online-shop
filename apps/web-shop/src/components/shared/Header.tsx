@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ShoppingBag, Headphones, User, Menu, X, ChevronRight } from "lucide-react";
+import { ShoppingBag, Headphones, User, LogIn, Menu, X, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/useCart";
 import { CartSheet } from "@/components/features/cart/CartSheet";
@@ -18,7 +18,6 @@ export function Header() {
 
   const hasUser = Boolean((session as { user?: unknown })?.user);
   const isAuthenticated = status === "authenticated" || hasUser;
-  const accountHref = status === "unauthenticated" && !hasUser ? "/signin" : "/profile";
 
   // Close mobile menu when route changes
   const [prevPathname, setPrevPathname] = useState(pathname);
@@ -92,11 +91,21 @@ export function Header() {
             </Button>
           )}
 
-          <Button asChild variant="ghost" size="icon" aria-label="Account" className="rounded-full hidden sm:flex">
-            <Link href={accountHref}>
-              <User className="w-5 h-5" />
-            </Link>
-          </Button>
+          {isAuthenticated && (
+            <Button asChild variant="ghost" size="icon" aria-label="My Profile" className="rounded-full hidden sm:flex">
+              <Link href="/profile">
+                <User className="w-5 h-5" />
+              </Link>
+            </Button>
+          )}
+
+          {!isAuthenticated && (
+            <Button asChild variant="ghost" size="icon" aria-label="Sign In" className="rounded-full hidden sm:flex">
+              <Link href="/signin">
+                <LogIn className="w-5 h-5" />
+              </Link>
+            </Button>
+          )}
 
           <Button
             size="icon"

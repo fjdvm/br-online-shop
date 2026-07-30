@@ -9,7 +9,11 @@ import type { ChatMessage, SupportTicketResponse, BotReplyResponse } from "@/typ
 
 export type BotPhase = "BOT_GREETING" | "BOT_THINKING" | "BOT_RESPONDED" | "ESCALATE_PROMPT" | "LIVE_AGENT";
 
-export function useChat(initialTicketId?: string) {
+interface UseChatOptions {
+  onTicketStatusChanged?: (payload: { ticketId: string; status: string; assignedToId?: string | null }) => void;
+}
+
+export function useChat(initialTicketId?: string, options?: UseChatOptions) {
   const { data: session, status } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [ticketId, setTicketId] = useState<string | null>(initialTicketId || null);
@@ -40,6 +44,7 @@ export function useChat(initialTicketId?: string) {
     onIncrementUnread: handleIncrementUnread,
     onSetBotPhase: setBotPhase,
     onSetMessages: setMessages,
+    onTicketStatusChanged: options?.onTicketStatusChanged,
   });
 
   useEffect(() => {

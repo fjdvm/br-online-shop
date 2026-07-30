@@ -6,6 +6,11 @@ import { createSignalRConnection } from "@/lib/signalr";
 import type { ChatMessage } from "@/types/chat";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
+interface TicketStatusChangedPayload {
+  ticketId: string;
+  status: string;
+  assignedToId?: string | null;
+}
 
 interface UseChatSignalRProps {
   ticketId: string | null;
@@ -17,6 +22,7 @@ interface UseChatSignalRProps {
   onIncrementUnread: () => void;
   onSetBotPhase: (phase: "LIVE_AGENT") => void;
   onSetMessages: (messages: ChatMessage[]) => void;
+  onTicketStatusChanged?: (payload: TicketStatusChangedPayload) => void;
 }
 
 export function useChatSignalR({
@@ -29,14 +35,33 @@ export function useChatSignalR({
   onIncrementUnread,
   onSetBotPhase,
   onSetMessages,
+  onTicketStatusChanged,
 }: UseChatSignalRProps) {
   const [isConnected, setIsConnected] = useState(false);
   const connectionRef = useRef<signalR.HubConnection | null>(null);
   const isOpenRef = useRef(isOpen);
 
+  // Use refs for callback props to avoid re-triggering the connection effect
+  const onReceiveMessageRef = useRef(onReceiveMessage);
+  const onIncrementUnreadRef = useRef(onIncrementUnread);
+  const onSetBotPhaseRef = useRef(onSetBotPhase);
+  const onSetMessagesRef = useRef(onSetMessages);
+  const onTicketStatusChangedRef = useRef(onTicketStatusChanged);
+
+  useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
+  useEffect(() => { onReceiveMessageRef.current = onReceiveMessage; }, [onReceiveMessage]);
+  useEffect(() => { onIncrementUnreadRef.current = onIncrementUnread; }, [onIncrementUnread]);
+  useEffect(() => { onSetBotPhaseRef.current = onSetBotPhase; }, [onSetBotPhase]);
+  useEffect(() => { onSetMessagesRef.current = onSetMessages; }, [onSetMessages]);
+  useEffect(() => { onTicketStatusChangedRef.current = onTicketStatusChanged; }, [onTicketStatusChanged]);
+
+  // Track whether auth was ever established to prevent flicker-induced disconnection
+  const wasAuthenticatedRef = useRef(false);
   useEffect(() => {
-    isOpenRef.current = isOpen;
-  }, [isOpen]);
+    if (isAuthenticated) {
+      wasAuthenticatedRef.current = true;
+    }
+  }, [isAuthenticated]);
 
   // Fetch initial message history from CRM via backend API proxy
   const fetchMessages = useCallback(
@@ -46,20 +71,24 @@ export function useChatSignalR({
         if (res.ok) {
           const data: ChatMessage[] = await res.json();
           if (Array.isArray(data) && data.length > 0) {
-            onSetMessages(data);
-            onSetBotPhase("LIVE_AGENT");
+            onSetMessagesRef.current(data);
+            onSetBotPhaseRef.current("LIVE_AGENT");
           }
         }
       } catch (err) {
         console.error("Failed to load message history:", err);
       }
     },
-    [onSetMessages, onSetBotPhase]
+    [] // No dependencies — uses refs for callbacks
   );
 
   // Connect SignalR hub ONLY when in LIVE_AGENT phase and ticketId exists
   useEffect(() => {
-    if (!ticketId || !isAuthenticated || botPhase !== "LIVE_AGENT") return;
+    // Use wasAuthenticatedRef to prevent disconnection during session refresh flickers.
+    // Only require that auth was established at some point (not that it's currently "authenticated"
+    // which can briefly flicker to false during session refetches).
+    const effectivelyAuthenticated = isAuthenticated || wasAuthenticatedRef.current;
+    if (!ticketId || !effectivelyAuthenticated || botPhase !== "LIVE_AGENT") return;
 
     fetchMessages(ticketId);
 
@@ -67,10 +96,14 @@ export function useChatSignalR({
     connectionRef.current = connection;
 
     connection.on("ReceiveMessage", (msg: ChatMessage) => {
-      onReceiveMessage(msg);
+      onReceiveMessageRef.current(msg);
       if (!isOpenRef.current && msg.senderId !== userId) {
-        onIncrementUnread();
+        onIncrementUnreadRef.current();
       }
+    });
+
+    connection.on("TicketStatusChanged", (payload: TicketStatusChangedPayload) => {
+      onTicketStatusChangedRef.current?.(payload);
     });
 
     connection
@@ -84,14 +117,31 @@ export function useChatSignalR({
       });
 
     return () => {
-      if (connection.state === signalR.HubConnectionState.Connected) {
-        connection.invoke("LeaveTicket", ticketId).catch(console.error);
-      }
-      connection.stop().catch(console.error);
+      const conn = connection;
       connectionRef.current = null;
       setIsConnected(false);
+
+      // Gracefully leave the ticket group and then stop the connection.
+      // Await the LeaveTicket invocation before calling stop() to prevent
+      // "Invocation canceled due to the underlying connection being closed".
+      const cleanup = async () => {
+        try {
+          if (conn.state === signalR.HubConnectionState.Connected) {
+            await conn.invoke("LeaveTicket", ticketId);
+          }
+        } catch {
+          // Connection may already be closing — ignore errors
+        } finally {
+          try {
+            await conn.stop();
+          } catch {
+            // Ignore stop errors
+          }
+        }
+      };
+      cleanup();
     };
-  }, [ticketId, isAuthenticated, userId, botPhase, fetchMessages, onReceiveMessage, onIncrementUnread]);
+  }, [ticketId, botPhase, fetchMessages, userId, isAuthenticated]);
 
   const sendSignalRMessage = useCallback(
     async (text: string) => {
