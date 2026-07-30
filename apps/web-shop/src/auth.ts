@@ -70,7 +70,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const authGuestOnlyPaths = ["/signin", "/signup", "/forgot-password", "/reset-password"];
       const isAuthGuestOnlyPath = authGuestOnlyPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-      const publicPaths = ["/", "/products", "/catalog", "/about", "/contact", "/terms", "/privacy", "/returns", "/faq", "/careers"];
+      const publicPaths = ["/", "/products", "/catalog", "/about", "/contact", "/terms", "/privacy", "/returns", "/faq", "/careers", "/support"];
       const isPublicPath = publicPaths.some((p) => pathname === p || (p !== "/" && pathname.startsWith(`${p}/`)));
 
       if (auth?.user && isAuthGuestOnlyPath) {
