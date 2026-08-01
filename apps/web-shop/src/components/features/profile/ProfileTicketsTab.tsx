@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Headphones, MessageSquare, Plus, Clock, User, ShieldCheck, Loader2 } from "lucide-react";
 import { supportApi } from "@/lib/api/support-api";
 import { TicketSubmitDialog } from "./TicketSubmitDialog";
@@ -14,7 +13,6 @@ interface ProfileTicketsTabProps {
 }
 
 export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabProps) {
-  const router = useRouter();
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
@@ -99,15 +97,6 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
           >
             <Plus className="w-4 h-4" /> Open New Ticket
           </button>
-
-          {onOpenLiveChat && (
-            <button
-              onClick={onOpenLiveChat}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-surface-card text-foreground border border-border text-xs font-semibold rounded-xl hover:bg-slate-50 transition-all cursor-pointer"
-            >
-              <MessageSquare className="w-3.5 h-3.5 text-primary" /> Live AI Chat
-            </button>
-          )}
         </div>
       </div>
 
@@ -119,11 +108,10 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
               key={status}
               type="button"
               onClick={() => setStatusFilter(status)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                statusFilter === status
-                  ? "bg-primary text-white shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-slate-100/50"
-              }`}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${statusFilter === status
+                ? "bg-primary text-white shadow-xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-slate-100/50"
+                }`}
             >
               {status} <span className="opacity-70 ml-0.5 text-[10px]">({getCount(status)})</span>
             </button>
@@ -232,12 +220,8 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
         isOpen={isSubmitDialogOpen}
         onClose={() => setIsSubmitDialogOpen(false)}
         userId={userId}
-        onSuccess={(newTicketId) => {
-          if (newTicketId) {
-            router.push(`/support/${newTicketId}`);
-          } else {
-            loadTickets();
-          }
+        onSuccess={() => {
+          loadTickets();
         }}
       />
     </div>

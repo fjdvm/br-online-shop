@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ShoppingBag, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, ShoppingBag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/useCart";
 import { CartItemRow } from "./CartItemRow";
@@ -74,7 +74,14 @@ export function CartPage() {
         </div>
       )}
 
-      {items.length === 0 && !loading ? (
+      {loading && items.length === 0 ? (
+        <div className="bg-surface-card rounded-2xl border border-border/70 p-12">
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <p className="text-xs text-muted-foreground mt-2">Loading your cart...</p>
+          </div>
+        </div>
+      ) : items.length === 0 && !loading ? (
         <div className="bg-surface-card rounded-2xl border border-border/70 p-12">
           <EmptyCartState />
         </div>
