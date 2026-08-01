@@ -1,11 +1,13 @@
 "use client";
 
 import { MessageSquare, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useChat } from "@/hooks/useChat";
 import { ChatPanel } from "./ChatPanel";
 import { ChatUnreadBadge } from "./ChatUnreadBadge";
 
 export function ChatBubble() {
+  const pathname = usePathname();
   const {
     isOpen,
     toggleOpen,
@@ -21,6 +23,12 @@ export function ChatBubble() {
     sendMessage,
     escalateToLiveAgent,
   } = useChat();
+
+  const isSupportPage = pathname?.startsWith("/support");
+
+  if (isSupportPage) {
+    return null;
+  }
 
   return (
     <>
