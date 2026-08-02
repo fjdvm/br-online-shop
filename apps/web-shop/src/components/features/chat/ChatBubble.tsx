@@ -32,6 +32,12 @@ export function ChatBubble() {
     return null;
   }
 
+  const isSupportPage = pathname?.startsWith("/support");
+
+  if (isSupportPage) {
+    return null;
+  }
+
   return (
     <>
       {/* Floating Toggle Button */}
