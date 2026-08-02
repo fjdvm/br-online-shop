@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare, User, Info, Ban } from "lucide-react";
+import { MessageSquare, Info, Ban } from "lucide-react";
 import type { TicketSummary } from "@/types/chat";
 
 interface ConversationHeaderProps {
@@ -50,12 +50,6 @@ export function ConversationHeader({ ticket, ticketId, onToggleDetails, onCancel
           {ticket?.status || "Unclaimed"}
         </span>
 
-        <div className="text-right text-xs text-slate-300 hidden md:block">
-          <span className="flex items-center gap-1">
-            <User className="w-3 h-3 text-purple-300" />
-            {ticket?.assignedToName || "Unassigned"}
-          </span>
-        </div>
 
         {onCancelTicket && (
           <button

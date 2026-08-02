@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Calendar, User, Tag, FileText, Clock, Hash } from "lucide-react";
+import { X, Calendar, Tag, FileText, Clock, Hash } from "lucide-react";
 import type { TicketSummary } from "@/types/chat";
 
 interface ConversationDetailsPanelProps {
@@ -34,22 +34,28 @@ export function ConversationDetailsPanel({ ticket, onClose }: ConversationDetail
     return title.replace(/^\[.+?\]\s*/, "");
   };
 
-  const formatDate = (dateStr: string): string => {
-    try {
-      return new Date(dateStr).toLocaleString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return dateStr;
-    }
+  const formatDate = (dateStr?: string | null): string => {
+    if (!dateStr) return "N/A";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "N/A";
+    return date.toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const ticketType = parseTicketType(ticket.title);
   const displayTitle = parseTicketTitle(ticket.title);
+  const createdDate = ticket.createdAt || ticket.created_at || ticket.createdUtc;
+  const updatedDate =
+    ticket.updatedAt ||
+    ticket.updated_at ||
+    ticket.updatedUtc ||
+    ticket.lastUpdatedAt ||
+    createdDate;
 
   return (
     <div className="absolute inset-0 z-20 flex">
@@ -103,15 +109,6 @@ export function ConversationDetailsPanel({ ticket, onClose }: ConversationDetail
             </div>
           </div>
 
-          {/* Assigned Agent */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
-              <User className="w-3 h-3" /> Assigned Agent
-            </label>
-            <p className="text-sm text-slate-700 font-medium">
-              {ticket.assignedToName || "Unassigned"}
-            </p>
-          </div>
 
           {/* Description */}
           <div className="space-y-1.5">
@@ -129,7 +126,7 @@ export function ConversationDetailsPanel({ ticket, onClose }: ConversationDetail
               <Calendar className="w-3 h-3" /> Created
             </label>
             <p className="text-sm text-slate-700 font-medium">
-              {formatDate(ticket.createdAt)}
+              {formatDate(createdDate)}
             </p>
           </div>
 
@@ -139,7 +136,7 @@ export function ConversationDetailsPanel({ ticket, onClose }: ConversationDetail
               <Clock className="w-3 h-3" /> Last Updated
             </label>
             <p className="text-sm text-slate-700 font-medium">
-              {formatDate(ticket.updatedAt)}
+              {formatDate(updatedDate)}
             </p>
           </div>
 

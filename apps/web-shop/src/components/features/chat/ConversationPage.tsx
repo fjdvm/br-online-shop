@@ -38,9 +38,17 @@ export function ConversationPage({ ticketId }: ConversationPageProps) {
         setTicket((prev) =>
           prev ? { ...prev, status: payload.status, assignedToName: payload.assignedToId || undefined } : null
         );
+        const s = (payload.status || "").toLowerCase();
+        if (s === "unclaimed" || s === "completed" || s === "canceled" || s === "cancelled") {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("ticket-status-changed", { detail: payload }));
+          }
+          router.replace("/support");
+          router.refresh();
+        }
       }
     },
-    [ticketId]
+    [ticketId, router]
   );
 
   const {
@@ -51,14 +59,30 @@ export function ConversationPage({ ticketId }: ConversationPageProps) {
   } = useChat(ticketId, { onTicketStatusChanged: handleTicketStatusChanged });
 
   useEffect(() => {
+    let isMounted = true;
     async function loadTicket() {
       setIsLoadingTicket(true);
       const data = await supportApi.getTicketDetails(ticketId);
+      if (!isMounted) return;
       setTicket(data);
       setIsLoadingTicket(false);
+
+      if (data) {
+        const s = (data.status || "").toLowerCase();
+        if (s === "unclaimed" || s === "completed" || s === "canceled" || s === "cancelled") {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("ticket-status-changed", { detail: { ticketId, status: data.status } }));
+          }
+          router.replace("/support");
+          router.refresh();
+        }
+      }
     }
     loadTicket();
-  }, [ticketId]);
+    return () => {
+      isMounted = false;
+    };
+  }, [ticketId, router]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -85,7 +109,12 @@ export function ConversationPage({ ticketId }: ConversationPageProps) {
       if (success) {
         setTicket((prev) => (prev ? { ...prev, status: "Canceled" } : null));
         setShowCancelModal(false);
-        router.push("/support");
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("ticket-status-changed", { detail: { ticketId, status: "Canceled" } }));
+          window.dispatchEvent(new CustomEvent("ticket-updated"));
+        }
+        router.replace("/support");
+        router.refresh();
       }
     } finally {
       setIsCancelling(false);
@@ -120,11 +149,10 @@ export function ConversationPage({ ticketId }: ConversationPageProps) {
         <div className="bg-purple-50 px-4 sm:px-6 py-2 border-b border-purple-100 flex items-center justify-between text-xs text-purple-900 font-medium shrink-0">
           <span className="flex items-center gap-2">
             <span
-              className={`h-2 w-2 rounded-full ${
-                isConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
-              }`}
+              className={`h-2 w-2 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                }`}
             />
-            {isConnected ? "Real-time chat active" : "Connecting..."}
+            {isConnected ? "Active" : "Connecting..."}
           </span>
           <span className="text-[11px] text-purple-600 hidden sm:block">SentraCX Support</span>
         </div>

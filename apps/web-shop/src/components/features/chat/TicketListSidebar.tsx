@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { MessageSquare, Clock, User, Loader2, Plus } from "lucide-react";
+import { MessageSquare, Clock, Loader2, Plus } from "lucide-react";
 import { supportApi } from "@/lib/api/support-api";
 import type { TicketSummary } from "@/types/chat";
 
@@ -32,11 +32,25 @@ export function TicketListSidebar({ userId, activeTicketId, onOpenNewTicket }: T
     loadTickets();
   }, [loadTickets]);
 
-  // Poll every 10s
+  // Poll every 5s
   useEffect(() => {
     if (!userId) return;
-    const interval = setInterval(() => loadTickets(true), 10000);
+    const interval = setInterval(() => loadTickets(true), 5000);
     return () => clearInterval(interval);
+  }, [loadTickets, userId]);
+
+  // Real-time event listener for ticket status changes and updates
+  useEffect(() => {
+    if (!userId) return;
+    const handleTicketUpdate = () => {
+      loadTickets(true);
+    };
+    window.addEventListener("ticket-status-changed", handleTicketUpdate);
+    window.addEventListener("ticket-updated", handleTicketUpdate);
+    return () => {
+      window.removeEventListener("ticket-status-changed", handleTicketUpdate);
+      window.removeEventListener("ticket-updated", handleTicketUpdate);
+    };
   }, [loadTickets, userId]);
 
   const getStatusDot = (status: string) => {
@@ -55,10 +69,27 @@ export function TicketListSidebar({ userId, activeTicketId, onOpenNewTicket }: T
     }
   };
 
-  const formatDate = (dateStr: string) => {
+  const getTicketDate = (ticket: TicketSummary): string | undefined => {
+    return (
+      ticket.updatedAt ||
+      ticket.createdAt ||
+      ticket.updated_at ||
+      ticket.created_at ||
+      ticket.updatedUtc ||
+      ticket.createdUtc ||
+      ticket.lastUpdatedAt
+    );
+  };
+
+  const formatDate = (dateStr?: string | null) => {
+    if (!dateStr) return "Recently";
     const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "Recently";
+
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
+    if (diffMs < 0) return "Just now";
+
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
@@ -72,10 +103,16 @@ export function TicketListSidebar({ userId, activeTicketId, onOpenNewTicket }: T
 
   const parseTitle = (title: string) => title.replace(/^\[.+?\]\s*/, "");
 
+  const isInactiveStatus = (status: string) => {
+    const s = (status || "").toLowerCase();
+    return s === "unclaimed" || s === "completed" || s === "canceled" || s === "cancelled";
+  };
+
   const conversationTickets = tickets.filter(
     (t) =>
-      ((t.status === "Claimed" || t.status === "Ongoing") && t.hasStaffReplied) ||
-      t.id === activeTicketId
+      !isInactiveStatus(t.status) &&
+      (t.status === "Claimed" || t.status === "Ongoing") &&
+      Boolean(t.hasStaffReplied)
   );
 
   return (
@@ -121,11 +158,10 @@ export function TicketListSidebar({ userId, activeTicketId, onOpenNewTicket }: T
                 <Link
                   key={ticket.id}
                   href={`/support/${ticket.id}`}
-                  className={`block px-4 py-3 transition-colors hover:bg-slate-50 ${
-                    isActive
-                      ? "bg-purple-50 border-l-[3px] border-l-[#451077]"
-                      : "border-l-[3px] border-l-transparent"
-                  }`}
+                  className={`block px-4 py-3 transition-colors hover:bg-slate-50 ${isActive
+                    ? "bg-purple-50 border-l-[3px] border-l-[#451077]"
+                    : "border-l-[3px] border-l-transparent"
+                    }`}
                 >
                   <div className="flex items-start gap-2.5">
                     {/* Status dot */}
@@ -148,14 +184,8 @@ export function TicketListSidebar({ userId, activeTicketId, onOpenNewTicket }: T
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
                           <Clock className="w-2.5 h-2.5" />
-                          {formatDate(ticket.updatedAt)}
+                          {formatDate(getTicketDate(ticket))}
                         </span>
-                        {ticket.assignedToName && (
-                          <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
-                            <User className="w-2.5 h-2.5" />
-                            {ticket.assignedToName}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>

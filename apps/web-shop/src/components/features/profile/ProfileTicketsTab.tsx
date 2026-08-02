@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Headphones, MessageSquare, Plus, Clock, User, ShieldCheck, Loader2 } from "lucide-react";
+import { Headphones, MessageSquare, Plus, Clock, ShieldCheck, Loader2 } from "lucide-react";
 import { supportApi } from "@/lib/api/support-api";
 import { TicketSubmitDialog } from "./TicketSubmitDialog";
 import type { TicketSummary } from "@/types/chat";
@@ -56,6 +56,20 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
     return () => clearInterval(interval);
   }, [loadTickets, userId]);
 
+  // Real-time event listener for ticket updates
+  useEffect(() => {
+    if (!userId) return;
+    const handleTicketUpdate = () => {
+      loadTickets(true);
+    };
+    window.addEventListener("ticket-status-changed", handleTicketUpdate);
+    window.addEventListener("ticket-updated", handleTicketUpdate);
+    return () => {
+      window.removeEventListener("ticket-status-changed", handleTicketUpdate);
+      window.removeEventListener("ticket-updated", handleTicketUpdate);
+    };
+  }, [loadTickets, userId]);
+
   const getStatusStyle = (status: string) => {
     switch (status) {
       case "Unclaimed":
@@ -70,6 +84,25 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
       default:
         return "bg-slate-100 text-slate-700 border-slate-200";
     }
+  };
+
+  const formatTicketDate = (ticket: TicketSummary): string => {
+    const raw =
+      ticket.createdAt ||
+      ticket.created_at ||
+      ticket.createdUtc ||
+      ticket.updatedAt ||
+      ticket.updated_at ||
+      ticket.updatedUtc ||
+      ticket.lastUpdatedAt;
+    if (!raw) return "Recently";
+    const date = new Date(raw);
+    if (isNaN(date.getTime())) return "Recently";
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   };
 
   const getCount = (status: string) => {
@@ -119,10 +152,11 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
               key={status}
               type="button"
               onClick={() => setStatusFilter(status)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${statusFilter === status
-                ? "bg-primary text-white shadow-xs"
-                : "text-muted-foreground hover:text-foreground hover:bg-slate-100/50"
-                }`}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                statusFilter === status
+                  ? "bg-primary text-white shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-slate-100/50"
+              }`}
             >
               {status} <span className="opacity-70 ml-0.5 text-[10px]">({getCount(status)})</span>
             </button>
@@ -174,39 +208,27 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
               <div className="space-y-1.5 flex-grow flex-1 min-w-0 max-w-lg">
                 <div className="flex items-center gap-2">
                   <span
-                    className={`px-2.5 py-0.5 text-[11px] font-bold rounded-full border ${getStatusStyle(
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${getStatusStyle(
                       ticket.status
                     )}`}
                   >
                     {ticket.status}
                   </span>
-                  <span className="text-[11px] text-muted-foreground font-mono">
+                  <span className="text-[10px] text-muted-foreground font-mono">
                     ID: #{ticket.id.slice(0, 8)}
                   </span>
                 </div>
 
-                <h4 className="text-sm font-extrabold text-foreground leading-tight truncate">
-                  {ticket.title}
-                </h4>
+                <h4 className="text-sm font-bold text-foreground truncate">{ticket.title}</h4>
 
                 {ticket.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-line">
-                    {ticket.description}
-                  </p>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{ticket.description}</p>
                 )}
 
-                <div className="flex items-center gap-4 text-[11px] text-muted-foreground font-medium pt-1">
+                <div className="flex items-center gap-4 text-[10px] text-muted-foreground font-medium pt-1">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3 text-primary" />
-                    {new Date(ticket.createdAt).toLocaleDateString(undefined, {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <User className="w-3 h-3 text-primary" />
-                    Agent: {ticket.assignedToName || "Unassigned"}
+                    {formatTicketDate(ticket)}
                   </span>
                 </div>
               </div>

@@ -28,7 +28,12 @@ export interface TicketSummary {
   customerId: string;
   assignedToId?: string;
   assignedToName?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  created_at?: string;
+  updated_at?: string;
+  createdUtc?: string;
+  updatedUtc?: string;
+  lastUpdatedAt?: string;
   hasStaffReplied?: boolean;
 }

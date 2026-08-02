@@ -134,6 +134,9 @@ export function useChatSignalR({
 
     connection.on("TicketStatusChanged", (payload: TicketStatusChangedPayload) => {
       onTicketStatusChangedRef.current?.(payload);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("ticket-status-changed", { detail: payload }));
+      }
     });
 
     connection
