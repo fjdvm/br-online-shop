@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api/api-client";
-import type { BotReplyResponse, TicketSummary } from "@/types/chat";
+import type { BotReplyResponse, TicketSummary, ChatMessage } from "@/types/chat";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
 
@@ -9,8 +9,8 @@ export const supportApi = {
       "/bot/reply",
       { ticketId: ticketId || "", userMessage },
       { token }
-    );
-  },
+      );
+    },
 
   async getPublicBotReply(userMessage: string): Promise<BotReplyResponse> {
     return await apiClient.post<BotReplyResponse>(
@@ -37,6 +37,17 @@ export const supportApi = {
       return await res.json();
     } catch {
       return null;
+    }
+  },
+
+  async getTicketMessages(ticketId: string): Promise<ChatMessage[]> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/tickets/${ticketId}/messages`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : data.items || [];
+    } catch {
+      return [];
     }
   },
 

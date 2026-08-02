@@ -6,6 +6,9 @@ import { createSignalRConnection } from "@/lib/signalr";
 import type { ChatMessage } from "@/types/chat";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
+const MAX_FETCH_RETRIES = 3;
+const RETRY_DELAY_MS = 2000;
+
 interface TicketStatusChangedPayload {
   ticketId: string;
   status: string;
@@ -38,8 +41,10 @@ export function useChatSignalR({
   onTicketStatusChanged,
 }: UseChatSignalRProps) {
   const [isConnected, setIsConnected] = useState(false);
+  const [messagesError, setMessagesError] = useState<string | null>(null);
   const connectionRef = useRef<signalR.HubConnection | null>(null);
   const isOpenRef = useRef(isOpen);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Use refs for callback props to avoid re-triggering the connection effect
   const onReceiveMessageRef = useRef(onReceiveMessage);
@@ -63,33 +68,56 @@ export function useChatSignalR({
     }
   }, [isAuthenticated]);
 
-  // Fetch initial message history from CRM via backend API proxy
+  // Fetch initial message history from CRM via backend API proxy with retry logic
   const fetchMessages = useCallback(
-    async (activeTicketId: string) => {
+    async (activeTicketId: string, attempt = 0) => {
       try {
         const res = await fetch(`${API_BASE_URL}/tickets/${activeTicketId}/messages`);
         if (res.ok) {
           const data: ChatMessage[] = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
+          if (Array.isArray(data)) {
             onSetMessagesRef.current(data);
-            onSetBotPhaseRef.current("LIVE_AGENT");
+            setMessagesError(null);
+            if (data.length > 0) {
+              onSetBotPhaseRef.current("LIVE_AGENT");
+            }
+          }
+        } else {
+          console.error(`Failed to load messages: ${res.status}`);
+          if (attempt < MAX_FETCH_RETRIES) {
+            retryTimerRef.current = setTimeout(() => fetchMessages(activeTicketId, attempt + 1), RETRY_DELAY_MS);
+          } else {
+            setMessagesError("Failed to load message history. Please try refreshing the page.");
           }
         }
       } catch (err) {
         console.error("Failed to load message history:", err);
+        if (attempt < MAX_FETCH_RETRIES) {
+          retryTimerRef.current = setTimeout(() => fetchMessages(activeTicketId, attempt + 1), RETRY_DELAY_MS);
+        } else {
+          setMessagesError("Failed to load message history. Please try refreshing the page.");
+        }
       }
     },
     [] // No dependencies — uses refs for callbacks
   );
 
+  // Cleanup retry timer on unmount
+  useEffect(() => {
+    return () => {
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+      }
+    };
+  }, []);
+
   // Connect SignalR hub ONLY when in LIVE_AGENT phase and ticketId exists
   useEffect(() => {
-    // Use wasAuthenticatedRef to prevent disconnection during session refresh flickers.
-    // Only require that auth was established at some point (not that it's currently "authenticated"
-    // which can briefly flicker to false during session refetches).
-    const effectivelyAuthenticated = isAuthenticated || wasAuthenticatedRef.current;
-    if (!ticketId || !effectivelyAuthenticated || botPhase !== "LIVE_AGENT") return;
+    if (!ticketId || !userId || botPhase !== "LIVE_AGENT") return;
 
+    let cancelled = false;
+
+    setMessagesError(null);
     fetchMessages(ticketId);
 
     const connection = createSignalRConnection();
@@ -109,39 +137,46 @@ export function useChatSignalR({
     connection
       .start()
       .then(() => {
+        if (cancelled) {
+          connection.stop().catch(() => {});
+          return;
+        }
         setIsConnected(true);
         connection.invoke("JoinTicket", ticketId).catch(console.error);
       })
       .catch((err) => {
-        console.error("SignalR connection error:", err);
+        // "Failed to start the HttpConnection before stop() was called" is expected
+        // when the effect is cleaned up during connection startup (React Strict Mode / Fast Refresh).
+        if (!cancelled) {
+          console.error("SignalR connection error:", err);
+        }
       });
 
     return () => {
+      cancelled = true;
       const conn = connection;
       connectionRef.current = null;
       setIsConnected(false);
 
-      // Gracefully leave the ticket group and then stop the connection.
-      // Await the LeaveTicket invocation before calling stop() to prevent
-      // "Invocation canceled due to the underlying connection being closed".
-      const cleanup = async () => {
-        try {
-          if (conn.state === signalR.HubConnectionState.Connected) {
-            await conn.invoke("LeaveTicket", ticketId);
-          }
-        } catch {
-          // Connection may already be closing — ignore errors
-        } finally {
-          try {
-            await conn.stop();
-          } catch {
-            // Ignore stop errors
-          }
-        }
-      };
-      cleanup();
+      // Clear any pending retry timers
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+
+      // Only stop if the connection is fully connected.
+      // If still in "Connecting" state, do NOT call stop() — the cancelled flag
+      // will cause the .start().then() handler to stop it once it resolves.
+      // Calling stop() during "Connecting" causes:
+      // "Failed to start the HttpConnection before stop() was called"
+      if (conn.state === signalR.HubConnectionState.Connected) {
+        conn.invoke("LeaveTicket", ticketId)
+          .catch(() => {})
+          .finally(() => conn.stop().catch(() => {}));
+      }
+      // For Connecting state: the cancelled flag handles cleanup in .start().then()
     };
-  }, [ticketId, botPhase, fetchMessages, userId, isAuthenticated]);
+  }, [ticketId, botPhase, fetchMessages, userId]);
 
   const sendSignalRMessage = useCallback(
     async (text: string) => {
@@ -162,6 +197,7 @@ export function useChatSignalR({
 
   return {
     isConnected,
+    messagesError,
     sendSignalRMessage,
   };
 }

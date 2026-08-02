@@ -1,11 +1,17 @@
 "use client";
 
 import { MessageSquare, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useChat } from "@/hooks/useChat";
 import { ChatPanel } from "./ChatPanel";
 import { ChatUnreadBadge } from "./ChatUnreadBadge";
 
 export function ChatBubble() {
+  const pathname = usePathname();
+
+  // Don't render the chat bubble on conversation pages — ConversationPage has its own useChat instance
+  const isOnConversationPage = pathname?.startsWith("/support/") && pathname !== "/support";
+
   const {
     isOpen,
     toggleOpen,
@@ -20,7 +26,11 @@ export function ChatBubble() {
     isAuthenticated,
     sendMessage,
     escalateToLiveAgent,
-  } = useChat();
+  } = useChat(undefined, undefined, isOnConversationPage);
+
+  if (isOnConversationPage) {
+    return null;
+  }
 
   return (
     <>

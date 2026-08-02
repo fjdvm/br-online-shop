@@ -13,7 +13,7 @@ interface UseChatOptions {
   onTicketStatusChanged?: (payload: { ticketId: string; status: string; assignedToId?: string | null }) => void;
 }
 
-export function useChat(initialTicketId?: string, options?: UseChatOptions) {
+export function useChat(initialTicketId?: string, options?: UseChatOptions, disabled?: boolean) {
   const { data: session, status } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [ticketId, setTicketId] = useState<string | null>(initialTicketId || null);
@@ -34,8 +34,8 @@ export function useChat(initialTicketId?: string, options?: UseChatOptions) {
 
   const handleIncrementUnread = useCallback(() => setUnreadCount((prev) => prev + 1), []);
 
-  const { isConnected, sendSignalRMessage } = useChatSignalR({
-    ticketId,
+  const { isConnected, messagesError, sendSignalRMessage } = useChatSignalR({
+    ticketId: disabled ? null : ticketId,
     isAuthenticated,
     userId,
     botPhase,
@@ -47,8 +47,99 @@ export function useChat(initialTicketId?: string, options?: UseChatOptions) {
     onTicketStatusChanged: options?.onTicketStatusChanged,
   });
 
+  const [isRestoringSession, setIsRestoringSession] = useState(() => !initialTicketId);
+
+  // Restore active ticket session for authenticated user on mount or session resolution
   useEffect(() => {
-    if (messages.length === 0 && !initialTicketId) {
+    if (initialTicketId) {
+      return;
+    }
+    if (status === "loading") return;
+    if (!userId || typeof window === "undefined") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsRestoringSession(false);
+      return;
+    }
+
+    const storageKey = `br_chat_ticket_${userId}`;
+    const storedTicketId = localStorage.getItem(storageKey);
+    if (!storedTicketId) {
+      setIsRestoringSession(false);
+      return;
+    }
+
+    let isMounted = true;
+    supportApi
+      .getTicketDetails(storedTicketId)
+      .then((details) => {
+        if (!isMounted) return;
+        if (details && details.status !== "Completed" && details.status !== "Canceled") {
+          setTicketId(storedTicketId);
+          setBotPhase("LIVE_AGENT");
+        } else {
+          localStorage.removeItem(storageKey);
+        }
+      })
+      .catch(() => {
+        // Fallback: keep stored ticketId if offline/error
+        if (isMounted) {
+          setTicketId(storedTicketId);
+          setBotPhase("LIVE_AGENT");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsRestoringSession(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [userId, status, initialTicketId]);
+
+  // Load bot chat history from sessionStorage on mount/session load
+  useEffect(() => {
+    if (typeof window === "undefined" || botPhase === "LIVE_AGENT" || initialTicketId || isRestoringSession) return;
+    const botStorageKey = `br_chat_bot_messages_${userId || "guest"}`;
+    const storedBotMessages = sessionStorage.getItem(botStorageKey);
+    if (storedBotMessages) {
+      try {
+        const parsed = JSON.parse(storedBotMessages);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setMessages(parsed);
+          const storedBotPhase = sessionStorage.getItem(`br_chat_bot_phase_${userId || "guest"}`);
+          if (storedBotPhase) {
+            setBotPhase(storedBotPhase as BotPhase);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse stored bot messages:", e);
+      }
+    }
+  }, [userId, botPhase, initialTicketId, isRestoringSession]);
+
+  // Persist bot chat messages to sessionStorage
+  useEffect(() => {
+    if (typeof window === "undefined" || botPhase === "LIVE_AGENT" || initialTicketId || messages.length === 0 || isRestoringSession) return;
+    const botStorageKey = `br_chat_bot_messages_${userId || "guest"}`;
+    sessionStorage.setItem(botStorageKey, JSON.stringify(messages));
+    sessionStorage.setItem(`br_chat_bot_phase_${userId || "guest"}`, botPhase);
+  }, [messages, botPhase, userId, initialTicketId, isRestoringSession]);
+
+  // If phase switches to LIVE_AGENT, clear the bot history
+  useEffect(() => {
+    if (botPhase === "LIVE_AGENT") {
+      const key = `br_chat_bot_messages_${userId || "guest"}`;
+      sessionStorage.removeItem(key);
+      sessionStorage.removeItem(`br_chat_bot_phase_${userId || "guest"}`);
+    }
+  }, [botPhase, userId]);
+
+  useEffect(() => {
+    if (isRestoringSession) return;
+    if (messages.length === 0 && !initialTicketId && !ticketId && botPhase === "BOT_GREETING") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMessages([{
         id: "bot-greeting",
@@ -60,7 +151,7 @@ export function useChat(initialTicketId?: string, options?: UseChatOptions) {
         sentAt: new Date().toISOString(),
       }]);
     }
-  }, [messages.length, initialTicketId]);
+  }, [messages.length, initialTicketId, ticketId, botPhase, isRestoringSession]);
 
   // Initialize or retrieve ticketId
   const getOrCreateTicket = useCallback(async () => {
@@ -70,8 +161,18 @@ export function useChat(initialTicketId?: string, options?: UseChatOptions) {
     const storageKey = `br_chat_ticket_${userId}`;
     const existingTicket = localStorage.getItem(storageKey);
     if (existingTicket) {
-      setTicketId(existingTicket);
-      return existingTicket;
+      try {
+        const details = await supportApi.getTicketDetails(existingTicket);
+        if (details && details.status !== "Completed" && details.status !== "Canceled") {
+          setTicketId(existingTicket);
+          return existingTicket;
+        } else {
+          localStorage.removeItem(storageKey);
+        }
+      } catch {
+        setTicketId(existingTicket);
+        return existingTicket;
+      }
     }
 
     try {
@@ -197,7 +298,7 @@ export function useChat(initialTicketId?: string, options?: UseChatOptions) {
     isLoading,
     isBotReplying,
     botPhase,
-    error,
+    error: error || messagesError,
     isAuthenticated,
     sendMessage,
     escalateToLiveAgent,

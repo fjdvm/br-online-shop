@@ -71,15 +71,24 @@ public class SentraCxService : ISentraCxService
         }
     }
 
-    public async Task<string> ProxyGetAsync(string path)
+    public async Task<(string Content, int StatusCode)> ProxyGetAsync(string path)
     {
         var client = _httpClientFactory.CreateClient("SentraCX");
-        var response = await client.GetAsync(path);
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            return "[]";
+            var response = await client.GetAsync(path);
+            var content = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("ProxyGetAsync to {Path} returned {StatusCode}: {Content}", path, (int)response.StatusCode, content);
+            }
+            return (content, (int)response.StatusCode);
         }
-        return await response.Content.ReadAsStringAsync();
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ProxyGetAsync to {Path} threw an exception", path);
+            return ("{\"error\":\"Failed to reach CRM API\"}", 502);
+        }
     }
 
     public async Task<(string Content, int StatusCode)> ProxyPostAsync(string path, object body)

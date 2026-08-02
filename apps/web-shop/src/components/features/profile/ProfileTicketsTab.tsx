@@ -23,10 +23,21 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
       setIsLoading(false);
       return;
     }
-    if (!silent) setIsLoading(true);
-    const data = await supportApi.getCustomerTickets(userId);
-    setTickets(data);
-    if (!silent) setIsLoading(false);
+    try {
+      if (!silent) setIsLoading(true);
+      const data = await supportApi.getCustomerTickets(userId);
+
+      const annotated = data.map((t) => ({
+        ...t,
+        hasStaffReplied: !!t.hasStaffReplied,
+      }));
+
+      setTickets(annotated);
+    } catch (error) {
+      console.error("Failed to load customer tickets:", error);
+    } finally {
+      if (!silent) setIsLoading(false);
+    }
   }, [userId]);
 
   useEffect(() => {
@@ -200,14 +211,14 @@ export function ProfileTicketsTab({ userId, onOpenLiveChat }: ProfileTicketsTabP
                 </div>
               </div>
 
-              {/* Action Button - only show when ticket is claimed by an agent */}
-              {ticket.status === "Claimed" && (
+              {/* Action Button - only show when ticket is claimed/ongoing and staff has replied */}
+              {(ticket.status === "Claimed" || ticket.status === "Ongoing") && ticket.hasStaffReplied && (
                 <Link
                   href={`/support/${ticket.id}`}
                   className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary/10 text-primary hover:bg-primary hover:text-white border border-primary/20 text-xs font-bold rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
-                  Message Staff
+                  View Conversation
                 </Link>
               )}
             </div>

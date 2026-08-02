@@ -26,7 +26,9 @@ export interface TicketSummary {
   description: string;
   status: string; // Unclaimed, Claimed, Ongoing, Completed, Canceled
   customerId: string;
+  assignedToId?: string;
   assignedToName?: string;
   createdAt: string;
   updatedAt: string;
+  hasStaffReplied?: boolean;
 }

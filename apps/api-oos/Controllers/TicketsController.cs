@@ -18,22 +18,22 @@ public class TicketsController : ControllerBase
     public async Task<IActionResult> GetTickets([FromQuery] string? customerId)
     {
         var query = !string.IsNullOrEmpty(customerId) ? $"?customerId={customerId}" : "";
-        var json = await _sentraCxService.ProxyGetAsync($"/api/v1/tickets{query}");
-        return Content(json, "application/json");
+        var (json, statusCode) = await _sentraCxService.ProxyGetAsync($"/api/v1/tickets{query}");
+        return new ContentResult { Content = json, ContentType = "application/json", StatusCode = statusCode };
     }
 
     [HttpGet("{ticketId}")]
     public async Task<IActionResult> GetTicketDetails(string ticketId)
     {
-        var json = await _sentraCxService.ProxyGetAsync($"/api/v1/tickets/{ticketId}");
-        return Content(json, "application/json");
+        var (json, statusCode) = await _sentraCxService.ProxyGetAsync($"/api/v1/tickets/{ticketId}");
+        return new ContentResult { Content = json, ContentType = "application/json", StatusCode = statusCode };
     }
 
     [HttpGet("{ticketId}/messages")]
     public async Task<IActionResult> GetTicketMessages(string ticketId)
     {
-        var json = await _sentraCxService.ProxyGetAsync($"/api/v1/tickets/{ticketId}/messages");
-        return Content(json, "application/json");
+        var (json, statusCode) = await _sentraCxService.ProxyGetAsync($"/api/v1/tickets/{ticketId}/messages");
+        return new ContentResult { Content = json, ContentType = "application/json", StatusCode = statusCode };
     }
 
     [HttpPost]

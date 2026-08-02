@@ -72,7 +72,11 @@ export function TicketListSidebar({ userId, activeTicketId, onOpenNewTicket }: T
 
   const parseTitle = (title: string) => title.replace(/^\[.+?\]\s*/, "");
 
-  const claimedTickets = tickets.filter((t) => t.status === "Claimed");
+  const conversationTickets = tickets.filter(
+    (t) =>
+      ((t.status === "Claimed" || t.status === "Ongoing") && t.hasStaffReplied) ||
+      t.id === activeTicketId
+  );
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -101,7 +105,7 @@ export function TicketListSidebar({ userId, activeTicketId, onOpenNewTicket }: T
             <Loader2 className="w-5 h-5 animate-spin mb-2 text-[#451077]" />
             Loading tickets...
           </div>
-        ) : claimedTickets.length === 0 ? (
+        ) : conversationTickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
             <MessageSquare className="w-8 h-8 text-slate-200 mb-2" />
             <p className="text-xs text-slate-500 font-medium">No conversations yet</p>
@@ -111,7 +115,7 @@ export function TicketListSidebar({ userId, activeTicketId, onOpenNewTicket }: T
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {claimedTickets.map((ticket) => {
+            {conversationTickets.map((ticket) => {
               const isActive = ticket.id === activeTicketId;
               return (
                 <Link
