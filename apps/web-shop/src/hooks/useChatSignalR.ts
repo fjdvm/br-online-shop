@@ -70,7 +70,10 @@ export function useChatSignalR({
 
   // Fetch initial message history from CRM via backend API proxy with retry logic
   const fetchMessages = useCallback(
-    async (activeTicketId: string, attempt = 0) => {
+    async function fetchMessagesFn(activeTicketId: string, attempt = 0) {
+      if (attempt === 0) {
+        setMessagesError(null);
+      }
       try {
         const res = await fetch(`${API_BASE_URL}/tickets/${activeTicketId}/messages`);
         if (res.ok) {
@@ -85,7 +88,7 @@ export function useChatSignalR({
         } else {
           console.error(`Failed to load messages: ${res.status}`);
           if (attempt < MAX_FETCH_RETRIES) {
-            retryTimerRef.current = setTimeout(() => fetchMessages(activeTicketId, attempt + 1), RETRY_DELAY_MS);
+            retryTimerRef.current = setTimeout(() => fetchMessagesFn(activeTicketId, attempt + 1), RETRY_DELAY_MS);
           } else {
             setMessagesError("Failed to load message history. Please try refreshing the page.");
           }
@@ -93,7 +96,7 @@ export function useChatSignalR({
       } catch (err) {
         console.error("Failed to load message history:", err);
         if (attempt < MAX_FETCH_RETRIES) {
-          retryTimerRef.current = setTimeout(() => fetchMessages(activeTicketId, attempt + 1), RETRY_DELAY_MS);
+          retryTimerRef.current = setTimeout(() => fetchMessagesFn(activeTicketId, attempt + 1), RETRY_DELAY_MS);
         } else {
           setMessagesError("Failed to load message history. Please try refreshing the page.");
         }
@@ -117,7 +120,6 @@ export function useChatSignalR({
 
     let cancelled = false;
 
-    setMessagesError(null);
     fetchMessages(ticketId);
 
     const connection = createSignalRConnection();
