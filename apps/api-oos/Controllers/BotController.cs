@@ -12,11 +12,11 @@ using Microsoft.AspNetCore.Mvc;
 [Route("api/bot")]
 public class BotController : ControllerBase
 {
-    private readonly IAiAnalyticsService _aiAnalyticsService;
+    private readonly ICrmChatbotService _chatbotService;
 
-    public BotController(IAiAnalyticsService aiAnalyticsService)
+    public BotController(ICrmChatbotService chatbotService)
     {
-        _aiAnalyticsService = aiAnalyticsService;
+        _chatbotService = chatbotService;
     }
 
     [HttpPost("reply")]
@@ -25,7 +25,7 @@ public class BotController : ControllerBase
         var subClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("sub");
         var customerId = subClaim?.Value;
 
-        var reply = await _aiAnalyticsService.GetBotReplyAsync(dto, customerId);
+        var reply = await _chatbotService.GetBotReplyAsync(dto, customerId);
         return Ok(reply);
     }
 
@@ -33,7 +33,7 @@ public class BotController : ControllerBase
     [HttpPost("public-reply")]
     public async Task<ActionResult<BotReplyResponseDto>> GetPublicReply([FromBody] BotReplyRequestDto dto)
     {
-        var reply = await _aiAnalyticsService.GetPublicBotReplyAsync(dto.UserMessage);
+        var reply = await _chatbotService.GetPublicBotReplyAsync(dto.UserMessage);
         return Ok(reply);
     }
 }

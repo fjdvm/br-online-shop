@@ -1,9 +1,11 @@
 namespace ApiOos.Extensions;
 
 using System.Text;
+using ApiOos.Authorization;
 using ApiOos.Configurations;
 using ApiOos.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -40,7 +42,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ApiOos.Interfaces.Services.IContactService, ApiOos.Services.ContactService>();
         services.AddScoped<ApiOos.Interfaces.Services.ISentraCxService, ApiOos.Services.SentraCxService>();
         services.AddScoped<ApiOos.Interfaces.Services.IReviewService, ApiOos.Services.ReviewService>();
-        services.AddScoped<ApiOos.Interfaces.Services.IAiAnalyticsService, ApiOos.Services.AiAnalyticsService>();
+        services.AddScoped<ApiOos.Interfaces.Services.ICrmChatbotService, ApiOos.Services.CrmChatbotService>();
         services.AddScoped<ApiOos.Interfaces.Services.IJobService, ApiOos.Services.JobService>();
 
         services.AddHttpClient("SentraCX", (sp, client) =>
@@ -48,16 +50,6 @@ public static class ServiceCollectionExtensions
             var config = sp.GetRequiredService<IConfiguration>();
             var crmUrl = config["SentraCX:ApiUrl"] ?? "http://localhost:5005";
             client.BaseAddress = new Uri(crmUrl);
-        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-        {
-            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-        });
-
-        services.AddHttpClient("AiAnalytics", (sp, client) =>
-        {
-            var config = sp.GetRequiredService<IConfiguration>();
-            var aiUrl = config["AiAnalytics:ApiUrl"] ?? "http://localhost:4005";
-            client.BaseAddress = new Uri(aiUrl);
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
         {
             ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
@@ -95,7 +87,13 @@ public static class ServiceCollectionExtensions
             };
         });
 
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(CrmSyncTokenRequirement.PolicyName, policy =>
+                policy.Requirements.Add(new CrmSyncTokenRequirement()));
+        });
+        services.Configure<CrmSyncOptions>(configuration.GetSection(CrmSyncOptions.SectionName));
+        services.AddSingleton<IAuthorizationHandler, CrmSyncTokenAuthorizationHandler>();
         return services;
     }
 

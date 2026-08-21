@@ -42,4 +42,18 @@ public static class OrderMapper
             TotalPrice = item.TotalPrice
         };
     }
+
+    public static OrderSyncDto ToSyncDto(Order order)
+    {
+        return new OrderSyncDto
+        {
+            Id = order.Id,
+            CustomerId = order.UserId,
+            OrderNumber = order.OrderNumber,
+            Status = order.Status.ToString(),
+            TotalAmount = order.TotalAmount,
+            CreatedAt = order.CreatedAt,
+            UpdatedAt = order.UpdatedAt
+        };
+    }
 }
