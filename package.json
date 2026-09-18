@@ -3,14 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n api-oos,web-shop,web-oos -c magenta,cyan,yellow \"npm run dev:api-oos\" \"npm run dev:web-shop\" \"npm run dev:web-oos\"",
-    "dev:api-oos": "cd services/api-oos && dotnet run",
+    "dev": "concurrently -n api-oos,web-shop,web-oos -c magenta,cyan,yellow \"npm run dev:api\" \"npm run dev:web-shop\" \"npm run dev:web-oos\"",
+    "dev:api": "cd services/api-oos && dotnet run",
     "dev:web-shop": "cd apps/web-shop && npm run dev",
     "dev:web-oos": "cd apps/web-oos && npm run dev",
-    "build:api-oos": "cd services/api-oos && dotnet build",
+    "build:api": "cd services/api-oos && dotnet build",
     "build:web-shop": "cd apps/web-shop && npm run build",
     "build:web-oos": "cd apps/web-oos && npm run build",
-    "test:api-oos": "cd services/api-oos/tests/ApiOos.Tests && dotnet test",
+    "test:api": "cd services/api-oos/tests/ApiOos.Tests && dotnet test",
     "test:web-shop": "cd apps/web-shop && npm test"
   },
   "devDependencies": {
