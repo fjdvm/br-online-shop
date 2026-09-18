@@ -1,0 +1,30 @@
+namespace ApiOos.Models;
+
+public class User
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string PasswordHash { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
+    public string? AvatarUrl { get; set; }
+    public string? PreferredLanguage { get; set; } = "en";
+    // The shopper's marketing consent answer collected at signup. Relayed to
+    // api-crms via the customer.created webhook; api-oos keeps its own copy
+    // purely as a record of what was collected.
+    public bool MarketingOptIn { get; set; }
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiry { get; set; }
+    public string? PasswordResetToken { get; set; }
+    public DateTime? PasswordResetTokenExpiry { get; set; }
+    public bool IsEmailVerified { get; set; }
+    public string? EmailVerificationToken { get; set; }
+    public DateTime? EmailVerificationTokenExpiry { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public ICollection<Address> Addresses { get; set; } = new List<Address>();
+    public Cart? Cart { get; set; }
+    public ICollection<Order> Orders { get; set; } = new List<Order>();
+}
+
