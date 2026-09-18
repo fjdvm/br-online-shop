@@ -1,5 +1,7 @@
 export async function register() {
-  if (process.env.NEXT_RUNTIME === "nodejs") {
+  // This installs the locally generated mkcert CA for HTTPS development only.
+  // Cloudflare Workers do not provide child_process and never need this CA.
+  if (process.env.NODE_ENV !== "production" && process.env.NEXT_RUNTIME === "nodejs") {
     const fs = await import("fs");
     const { execSync } = await import("child_process");
     const { setGlobalDispatcher, Agent } = await import("undici");

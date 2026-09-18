@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { AuthResponse } from "@/types/auth";
 import { apiClient } from "@/lib/api/api-client";
+import authConfig from "@/auth.config";
 
 /**
  * Refresh the access token using the backend's /auth/refresh endpoint.
@@ -26,6 +27,7 @@ async function refreshAccessToken(refreshToken: string): Promise<{
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       name: "Credentials",
@@ -57,14 +59,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
-  pages: {
-    signIn: "/signin",
-  },
-  session: {
-    strategy: "jwt",
-    maxAge: 7 * 24 * 60 * 60, // 7 days - matches refresh token lifetime
-  },
   callbacks: {
+    ...authConfig.callbacks,
     async jwt({ token, user }) {
       // Initial sign in - store tokens and set expiry
       if (user) {
@@ -104,39 +100,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.accessToken = (token.accessToken as string) || "";
       session.error = token.error as string | undefined;
       return session;
-    },
-    async authorized({ auth, request }) {
-      const { pathname } = request.nextUrl;
-
-      // Allow static assets, images, next internals, and API auth endpoints
-      const isStaticAsset =
-        pathname.startsWith("/_next") ||
-        pathname.startsWith("/api/auth") ||
-        pathname === "/favicon.ico" ||
-        /\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$/i.test(pathname);
-
-      if (isStaticAsset) {
-        return true;
-      }
-
-      const authGuestOnlyPaths = ["/signin", "/signup", "/forgot-password", "/reset-password"];
-      const isAuthGuestOnlyPath = authGuestOnlyPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-
-      // /support is intentionally NOT public: the whole subtree (list + a specific
-      // ticket) requires an authenticated session, enforced here at the middleware
-      // rather than by a client-side redirect (#144, ADR 0005).
-      const publicPaths = ["/", "/products", "/catalog", "/about", "/contact", "/terms", "/privacy", "/returns", "/faq", "/careers", "/verify-email"];
-      const isPublicPath = publicPaths.some((p) => pathname === p || (p !== "/" && pathname.startsWith(`${p}/`)));
-
-      if (auth?.user && isAuthGuestOnlyPath) {
-        return Response.redirect(new URL("/", request.url));
-      }
-
-      if (isPublicPath || isAuthGuestOnlyPath) {
-        return true;
-      }
-
-      return !!auth?.user;
     },
   },
 });

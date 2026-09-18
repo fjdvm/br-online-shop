@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "br-ecommerce-web-shop",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "NEXT_PUBLIC_API_URL": "https://br-ecommerce-d7hhg4g9h2grg2h9.eastasia-01.azurewebsites.net/api",
+    "NEXT_PUBLIC_SITE_URL": "https://br-ecommerce-web-shop.jude-nitram08.workers.dev",
+    "AUTH_URL": "https://br-ecommerce-web-shop.jude-nitram08.workers.dev"
+  },
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
