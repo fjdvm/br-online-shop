@@ -25,6 +25,7 @@ public sealed class OrderWebhookDispatchTests : IDisposable
     private readonly OrderService _orderService;
     private readonly CartService _cartService;
     private readonly FakeEcommerceWebhookClient _webhookClient = new();
+    private readonly FakePosWebhookClient _posWebhookClient = new();
 
     public OrderWebhookDispatchTests()
     {
@@ -40,7 +41,7 @@ public sealed class OrderWebhookDispatchTests : IDisposable
         var userRepository = new UserRepository(_context);
         _cartService = new CartService(cartRepository, new ProductRepository(_context));
         _orderService = new OrderService(
-            cartRepository, orderRepository, _context, userRepository, _webhookClient);
+            cartRepository, orderRepository, _context, userRepository, _webhookClient, _posWebhookClient);
     }
 
     public void Dispose()
@@ -83,6 +84,36 @@ public sealed class OrderWebhookDispatchTests : IDisposable
 
         // Order still persisted despite a failing webhook - CRM is a passive receiver.
         orderDto.Should().NotBeNull();
+        (await _context.Orders.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CreateOrderAsync_sends_pos_order_and_starts_non_cod_payment_pending()
+    {
+        var user = await CreateUserAsync("card@example.com");
+        var product = await CreateProductAsync(100m);
+        await _cartService.AddItemAsync(user.Id, new AddCartItemRequest { ProductId = product.Id, Quantity = 1 });
+
+        var request = BuildRequest();
+        request.PaymentMethod = PaymentMethod.CreditCard;
+        var order = await _orderService.CreateOrderAsync(user.Id, request);
+
+        _posWebhookClient.Sent.Should().ContainSingle(e => e.EventType == "order.created" &&
+            e.Data.OrderId == order.OrderNumber && e.Data.CustomerEmail == "card@example.com");
+        order.PaymentStatus.Should().Be("Pending");
+    }
+
+    [Fact]
+    public async Task CreateOrderAsync_still_creates_order_when_pos_delivery_throws()
+    {
+        _posWebhookClient.ThrowOnSend = true;
+        var user = await CreateUserAsync("pos-outage@example.com");
+        var product = await CreateProductAsync(100m);
+        await _cartService.AddItemAsync(user.Id, new AddCartItemRequest { ProductId = product.Id, Quantity = 1 });
+
+        var order = await _orderService.CreateOrderAsync(user.Id, BuildRequest());
+
+        order.Should().NotBeNull();
         (await _context.Orders.CountAsync()).Should().Be(1);
     }
 
@@ -142,6 +173,18 @@ public sealed class OrderWebhookDispatchTests : IDisposable
                 throw new HttpRequestException("simulated CRM outage");
             }
 
+            Sent.Add(webhookEvent);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakePosWebhookClient : IPosWebhookClient
+    {
+        public List<PosWebhookEvent> Sent { get; } = [];
+        public bool ThrowOnSend { get; set; }
+        public Task SendAsync(PosWebhookEvent webhookEvent, CancellationToken cancellationToken = default)
+        {
+            if (ThrowOnSend) throw new HttpRequestException("simulated POS outage");
             Sent.Add(webhookEvent);
             return Task.CompletedTask;
         }

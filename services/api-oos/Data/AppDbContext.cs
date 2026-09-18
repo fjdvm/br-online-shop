@@ -23,6 +23,7 @@ public class AppDbContext : DbContext
     public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
     public DbSet<JobPosting> JobPostings => Set<JobPosting>();
     public DbSet<JobApplication> JobApplications => Set<JobApplication>();
+    public DbSet<ProcessedIntegrationEvent> ProcessedIntegrationEvents => Set<ProcessedIntegrationEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -180,6 +181,14 @@ public class AppDbContext : DbContext
              .WithMany()
              .HasForeignKey(a => a.JobPostingId)
              .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProcessedIntegrationEvent>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.HasIndex(p => p.EventId).IsUnique();
+            e.Property(p => p.EventId).IsRequired().HasMaxLength(128);
+            e.Property(p => p.EventType).IsRequired().HasMaxLength(128);
         });
     }
 }

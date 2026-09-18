@@ -16,7 +16,7 @@ public static class ServiceCollectionExtensions
         if (!string.IsNullOrEmpty(connectionString))
         {
             services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlite(connectionString));
+                options.UseNpgsql(connectionString));
         }
         return services;
     }
@@ -66,6 +66,8 @@ public static class ServiceCollectionExtensions
         // Outbound Ecommerce webhook client → api-crms (ADR 0001/0002: CRMS is a
         // passive, HMAC-signed receiver; api-oos is the caller).
         services.AddScoped<ApiOos.Interfaces.Services.IEcommerceWebhookClient, ApiOos.Services.EcommerceWebhookClient>();
+        services.AddScoped<ApiOos.Interfaces.Services.IPosWebhookClient, ApiOos.Services.PosWebhookClient>();
+        services.AddScoped<ApiOos.Interfaces.Services.IPosOrderIngestionService, ApiOos.Services.PosOrderIngestionService>();
         // Storefront Banner/Popup delivery (#163): reads Active content from api-crms.
         services.AddScoped<ApiOos.Interfaces.Services.IActiveContentReader, ApiOos.Services.ActiveContentReader>();
         services.AddHttpClient(ApiOos.Services.EcommerceWebhookClient.HttpClientName, (sp, client) =>
@@ -73,6 +75,16 @@ public static class ServiceCollectionExtensions
             var config = sp.GetRequiredService<IConfiguration>();
             var crmsUrl = config["ApiCrms:BaseUrl"] ?? "http://localhost:5035";
             client.BaseAddress = new Uri(crmsUrl.EndsWith('/') ? crmsUrl : crmsUrl + "/");
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        });
+        // POS order delivery uses its own client and shared inbound/outbound secret.
+        services.AddHttpClient(ApiOos.Services.PosWebhookClient.HttpClientName, (sp, client) =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var posUrl = config["Pos:BaseUrl"] ?? "http://localhost:5036";
+            client.BaseAddress = new Uri(posUrl.EndsWith('/') ? posUrl : posUrl + "/");
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
         {
             ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator

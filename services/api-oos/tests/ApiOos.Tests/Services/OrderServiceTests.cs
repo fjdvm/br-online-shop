@@ -38,13 +38,21 @@ public class OrderServiceTests : IDisposable
             _orderRepository,
             _context,
             new UserRepository(_context),
-            new NoOpEcommerceWebhookClient());
+            new NoOpEcommerceWebhookClient(),
+            new NoOpPosWebhookClient());
     }
 
     private sealed class NoOpEcommerceWebhookClient : ApiOos.Interfaces.Services.IEcommerceWebhookClient
     {
         public Task SendAsync(
             ApiOos.DTOs.Webhooks.EcommerceWebhookEvent webhookEvent,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class NoOpPosWebhookClient : ApiOos.Interfaces.Services.IPosWebhookClient
+    {
+        public Task SendAsync(
+            ApiOos.DTOs.Webhooks.PosWebhookEvent webhookEvent,
             CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 

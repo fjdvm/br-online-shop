@@ -38,4 +38,13 @@ public class OrderRepository : IOrderRepository
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
     }
+
+    public async Task<Order?> GetByOrderNumberAsync(string orderNumber)
+    {
+        return await _context.Orders
+            .Include(o => o.User)
+            .Include(o => o.Items)
+            .Include(o => o.Payment)
+            .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
+    }
 }

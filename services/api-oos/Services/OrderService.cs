@@ -20,6 +20,7 @@ public class OrderService : IOrderService
     private readonly AppDbContext _context;
     private readonly IUserRepository _userRepository;
     private readonly IEcommerceWebhookClient _ecommerceWebhookClient;
+    private readonly IPosWebhookClient _posWebhookClient;
     private readonly ILogger<OrderService>? _logger;
     private static readonly decimal FlatShippingFee = 100.00m;
     private static readonly decimal TaxRate = 0.00m;
@@ -30,6 +31,7 @@ public class OrderService : IOrderService
         AppDbContext context,
         IUserRepository userRepository,
         IEcommerceWebhookClient ecommerceWebhookClient,
+        IPosWebhookClient posWebhookClient,
         ILogger<OrderService>? logger = null)
     {
         _cartRepository = cartRepository;
@@ -37,6 +39,7 @@ public class OrderService : IOrderService
         _context = context;
         _userRepository = userRepository;
         _ecommerceWebhookClient = ecommerceWebhookClient;
+        _posWebhookClient = posWebhookClient;
         _logger = logger;
     }
 
@@ -155,7 +158,9 @@ public class OrderService : IOrderService
             {
                 OrderId = order.Id,
                 PaymentMethod = request.PaymentMethod,
-                Status = request.PaymentMethod == PaymentMethod.CashOnDelivery ? PaymentStatus.Pending : PaymentStatus.Paid,
+                // POS is the payment authority; checkout never assumes a card/mock
+                // payment has settled before POS confirms it by webhook.
+                Status = PaymentStatus.Pending,
                 TransactionId = $"TXN-{Guid.NewGuid().ToString("N")[..12].ToUpper()}",
                 Amount = totalAmount,
                 CreatedAt = DateTime.UtcNow,
@@ -184,12 +189,50 @@ public class OrderService : IOrderService
 
             var orderDto = OrderMapper.ToDto(order);
             await DispatchOrderCreatedAsync(order, userId);
+            await DispatchOrderCreatedToPosAsync(order, userId);
             return orderDto;
         }
         catch
         {
             await transaction.RollbackAsync();
             throw;
+        }
+    }
+
+    private async Task DispatchOrderCreatedToPosAsync(Order order, Guid userId)
+    {
+        try
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            await _posWebhookClient.SendAsync(new PosWebhookEvent
+            {
+                EventId = Guid.NewGuid().ToString(),
+                EventType = "order.created",
+                Data = new PosWebhookData
+                {
+                    OrderId = order.OrderNumber,
+                    CustomerEmail = user?.Email,
+                    CustomerName = user?.FullName,
+                    PaymentMethod = order.Payment?.PaymentMethod.ToString() ?? string.Empty,
+                    TotalAmount = order.TotalAmount,
+                    ShippingRecipientName = order.ShippingRecipientName,
+                    ShippingStreet = order.ShippingStreet,
+                    ShippingCity = order.ShippingCity,
+                    ShippingProvince = order.ShippingProvince,
+                    ShippingPostalCode = order.ShippingPostalCode,
+                    ShippingPhone = order.ShippingPhone,
+                    LineItems = order.Items.Select(item => new PosWebhookLineItem
+                    {
+                        ProductId = item.ProductId.ToString(), ProductName = item.ProductName,
+                        ProductSku = item.ProductSKU, Quantity = item.Quantity, UnitPrice = item.UnitPrice,
+                    }).ToList(),
+                    OccurredAt = order.CreatedAt.ToUniversalTime().ToString("O"),
+                },
+            });
+        }
+        catch (Exception exception)
+        {
+            _logger?.LogWarning(exception, "Failed to dispatch order.created for order {OrderNumber} to POS.", order.OrderNumber);
         }
     }
 
