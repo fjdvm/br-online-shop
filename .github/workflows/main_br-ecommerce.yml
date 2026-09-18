@@ -23,17 +23,20 @@ jobs:
         with:
           dotnet-version: '10.x'
 
+      - name: Restore dependencies
+        run: dotnet restore services/api-oos/ApiOos.csproj
+
       - name: Build with dotnet
-        run: dotnet build --configuration Release
+        run: dotnet build services/api-oos/ApiOos.csproj --configuration Release --no-restore
 
       - name: dotnet publish
-        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        run: dotnet publish services/api-oos/ApiOos.csproj --configuration Release --no-build --output ${{ runner.temp }}/api-oos
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+          path: ${{ runner.temp }}/api-oos
 
   deploy:
     runs-on: ubuntu-latest
